@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --navy: #0B1F4B;
+  --indigo: #3B4FE0;
+  --pink: #E91E7B;
+  --teal: #12b39a;
+  --bg: #f8fafc;
+  --card: #ffffff;
+  --line: #e2e8f0;
+  --text: #0f172a;
+}
+
+body {
+  color: var(--text);
+  background-color: var(--bg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom Status Badges */
+.badge-status {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold tracking-wide uppercase;
+}
+
+.s-OPEN, .s-DRAFT, .s-PLANNED {
+  @apply bg-slate-100 text-slate-700 border border-slate-200;
+}
+
+.s-SUBMITTED, .s-PARTIAL, .s-REORDER, .s-DISPATCHED, .s-IN_TRANSIT, .s-PENDING_APPROVAL {
+  @apply bg-amber-50 text-amber-700 border border-amber-200;
+}
+
+.s-APPROVED, .s-DELIVERED, .s-RECEIVED, .s-COMPLETED, .s-CONVERTED, .s-HEALTHY, .s-AUTO {
+  @apply bg-emerald-50 text-emerald-700 border border-emerald-200;
+}
+
+.s-ALLOCATED, .s-RELEASED, .s-BUY, .s-RFQ, .s-AWARDED {
+  @apply bg-indigo-50 text-indigo-700 border border-indigo-200;
+}
+
+.s-MAKE {
+  @apply bg-teal-50 text-teal-700 border border-teal-200;
+}
+
+.s-TRANSFER {
+  @apply bg-pink-50 text-pink-700 border border-pink-200;
+}
+
+.s-CANCELLED, .s-REJECTED, .s-STOCKOUT, .s-BELOW_SS, .s-EXPEDITE, .s-STOCKOUT_RISK, .s-LATE_SUPPLY, .s-NO_SOURCE, .s-FAILED, .s-DIRECTOR {
+  @apply bg-rose-50 text-rose-700 border border-rose-200;
+}
+
+.s-EXCESS, .s-NO_DEMAND {
+  @apply bg-purple-50 text-purple-700 border border-purple-200;
+}
+
+.s-A {
+  @apply bg-navy-900 text-white;
+}
+.s-B {
+  @apply bg-brand-indigo text-white;
+}
+.s-C {
+  @apply bg-slate-200 text-slate-800;
+}
+
+.s-X {
+  @apply bg-emerald-100 text-emerald-800;
+}
+.s-Y {
+  @apply bg-amber-100 text-amber-800;
+}
+.s-Z {
+  @apply bg-rose-100 text-rose-800;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
+
