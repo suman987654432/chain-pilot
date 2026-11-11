@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { apiCall, setStoredToken, setCachedSession, useData } from '@/lib/client';
 import { Button, Field, Modal, Msg, StatusBadge, LoadingBadge, TableLoadingRow } from '@/components/ui';
-import { ShieldCheck, UserPlus, Lock, AlertCircle, Building2, Plus, ArrowRightLeft, Check, RefreshCw } from 'lucide-react';
+import { ShieldCheck, UserPlus, Lock, AlertCircle, Building2, Plus, ArrowRightLeft, Check, RefreshCw, Edit2, Trash2 } from 'lucide-react';
 
 const ROLES_INFO: Record<string, { title: string; desc: string }> = {
   ADMIN: {
@@ -46,6 +46,8 @@ export default function TeamPage() {
   const { data: lk } = useData<any>('/api/lookups');
 
   const [m, setM] = useState<any>(null);
+  const [editMember, setEditMember] = useState<any>(null);
+  const [delMember, setDelMember] = useState<any>(null);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
 
@@ -76,6 +78,42 @@ export default function TeamPage() {
         name: m.name || undefined,
       });
       setM(null);
+      reload();
+    } catch (x: any) {
+      setErr(x.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleUpdateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editMember) return;
+    setErr('');
+    setBusy(true);
+    try {
+      await apiCall(`/api/members/${editMember.id}`, 'PUT', {
+        name: editMember.name?.trim() || undefined,
+        role: editMember.role,
+        location_id: editMember.location_id || null,
+        password: editMember.password?.trim() || undefined,
+      });
+      setEditMember(null);
+      reload();
+    } catch (x: any) {
+      setErr(x.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!delMember) return;
+    setErr('');
+    setBusy(true);
+    try {
+      await apiCall(`/api/members/${delMember.id}`, 'DELETE');
+      setDelMember(null);
       reload();
     } catch (x: any) {
       setErr(x.message);
@@ -261,13 +299,14 @@ export default function TeamPage() {
             )}
           </div>
           <div className="overflow-x-auto w-full">
-            <table className="w-full text-left text-xs min-w-[540px]">
+            <table className="w-full text-left text-xs min-w-[580px]">
               <thead className="bg-slate-50/80 border-b border-slate-100 text-slate-500 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="py-3 px-3.5 whitespace-nowrap">Member Name</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Email</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Role</th>
                   <th className="py-3 px-3.5 whitespace-nowrap">Assigned Location</th>
+                  {isAdmin && <th className="py-3 px-3.5 text-right whitespace-nowrap">Actions</th>}
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
@@ -292,16 +331,49 @@ export default function TeamPage() {
                         <span className="text-slate-400">All Facilities</span>
                       )}
                     </td>
+                    {isAdmin && (
+                      <td className="py-2.5 px-3.5 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEditMember({
+                                id: u.id,
+                                name: u.name,
+                                email: u.email,
+                                role: u.role,
+                                location_id: u.location_id,
+                                password: '',
+                              })
+                            }
+                            className="p-1.5 rounded-lg border border-slate-200/80 bg-white hover:bg-indigo-50 text-slate-600 hover:text-brand-indigo hover:border-indigo-200 transition-colors shadow-2xs"
+                            title="Edit Member Access & Location"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          {u.id !== me?.id && (
+                            <button
+                              type="button"
+                              onClick={() => setDelMember(u)}
+                              className="p-1.5 rounded-lg border border-slate-200/80 bg-white hover:bg-rose-50 text-slate-400 hover:text-rose-600 hover:border-rose-200 transition-colors shadow-2xs"
+                              title="Revoke Member Access"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    )}
                   </tr>
                 ))}
                 {loading && (!data || data.length === 0) ? (
                   <TableLoadingRow
-                    colSpan={4}
+                    colSpan={isAdmin ? 5 : 4}
                     text="Fetching organization members and role permissions..."
                   />
                 ) : data && data.length === 0 ? (
                   <tr>
-                    <td colSpan={4} className="py-12 text-center text-slate-400 font-medium">
+                    <td colSpan={isAdmin ? 5 : 4} className="py-12 text-center text-slate-400 font-medium">
                       No team members found.
                     </td>
                   </tr>
@@ -350,6 +422,7 @@ export default function TeamPage() {
       {m && (
         <Modal title="Add Organization Member" onClose={() => setM(null)} maxWidth="max-w-md">
           <form onSubmit={handleSaveMember} className="space-y-4">
+            <Msg err={err} />
             <Field label="Email Address *">
               <input
                 type="email"
@@ -425,6 +498,109 @@ export default function TeamPage() {
               </Button>
             </div>
           </form>
+        </Modal>
+      )}
+
+      {/* Edit Member Dialog */}
+      {editMember && (
+        <Modal
+          title={`Edit Member: ${editMember.email}`}
+          onClose={() => setEditMember(null)}
+          maxWidth="max-w-md"
+        >
+          <form onSubmit={handleUpdateMember} className="space-y-4">
+            <Msg err={err} />
+            <Field label="Full Name">
+              <input
+                type="text"
+                placeholder="e.g. Suman Kumar"
+                value={editMember.name ?? ''}
+                onChange={(e) => setEditMember({ ...editMember, name: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-indigo font-medium"
+              />
+            </Field>
+
+            <Field label="New Password (Leave blank to keep unchanged)">
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={editMember.password ?? ''}
+                onChange={(e) => setEditMember({ ...editMember, password: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-indigo"
+              />
+            </Field>
+
+            <Field label="Assigned Role *">
+              <select
+                required
+                value={editMember.role}
+                onChange={(e) => setEditMember({ ...editMember, role: e.target.value })}
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-indigo font-semibold text-slate-800"
+              >
+                {Object.keys(ROLES_INFO).map((r) => (
+                  <option key={r} value={r}>
+                    {r} — {ROLES_INFO[r].title}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <Field label="Designated Home Location">
+              <select
+                value={editMember.location_id ?? ''}
+                onChange={(e) =>
+                  setEditMember({
+                    ...editMember,
+                    location_id: Number(e.target.value) || null,
+                  })
+                }
+                className="w-full px-3.5 py-2 text-sm bg-white border border-slate-200 rounded-xl focus:ring-2 focus:ring-brand-indigo font-medium"
+              >
+                <option value="">All Locations (Global Access)</option>
+                {lk?.locations.map((l: any) => (
+                  <option key={l.id} value={l.id}>
+                    {l.code} • {l.name}
+                  </option>
+                ))}
+              </select>
+            </Field>
+
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setEditMember(null)}>
+                Cancel
+              </Button>
+              <Button variant="primary" type="submit" disabled={busy}>
+                {busy ? 'Saving...' : 'Update Member'}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {/* Delete Member Confirmation Modal */}
+      {delMember && (
+        <Modal
+          title="Revoke Member Access"
+          onClose={() => setDelMember(null)}
+          maxWidth="max-w-md"
+        >
+          <div className="space-y-4">
+            <Msg err={err} />
+            <p className="text-sm text-slate-600 leading-relaxed">
+              Are you sure you want to remove <b className="text-slate-900">{delMember.name || delMember.email}</b> ({delMember.email}) from <span className="font-semibold text-brand-indigo">{me?.org?.name || 'this organization'}</span>?
+            </p>
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 leading-relaxed">
+              <b>Warning:</b> This user will immediately lose access to all modules, orders, and data for this company. Historical transactions and audit logs will remain intact.
+            </div>
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+              <Button variant="ghost" onClick={() => setDelMember(null)}>
+                Cancel
+              </Button>
+              <Button variant="danger" onClick={handleDeleteMember} disabled={busy}>
+                {busy ? 'Removing...' : 'Remove Member'}
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
 

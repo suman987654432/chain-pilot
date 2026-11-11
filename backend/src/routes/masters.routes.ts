@@ -237,6 +237,63 @@ router.post('/members', requireRole('ADMIN'), asyncHandler(async (req, res) => {
   res.json(result);
 }));
 
+router.put('/members/:userId', requireRole('ADMIN'), asyncHandler(async (req, res) => {
+  const s = req.session!;
+  const userId = Number(req.params.userId);
+  if (!userId) throw new HttpError(400, 'Invalid user ID');
+
+  const { name, role, location_id, password } = req.body;
+  if (!role) throw new HttpError(400, 'Role is required');
+
+  const result = await tx(async c => {
+    // 1. Verify user belongs to this organization
+    const { rows: [m] } = await c.query(
+      `SELECT * FROM memberships WHERE org_id=$1 AND user_id=$2`,
+      [s.orgId, userId]
+    );
+    if (!m) throw new HttpError(404, 'Member not found in this organization');
+
+    // 2. Update membership role & location
+    await c.query(
+      `UPDATE memberships SET role=$3, location_id=$4 WHERE org_id=$1 AND user_id=$2`,
+      [s.orgId, userId, role, location_id ?? null]
+    );
+
+    // 3. Update user name if provided
+    if (name && typeof name === 'string' && name.trim()) {
+      await c.query(`UPDATE users SET name=$2 WHERE id=$1`, [userId, name.trim()]);
+    }
+
+    // 4. Update password if provided
+    if (password && typeof password === 'string' && password.trim().length >= 8) {
+      const hash = await bcrypt.hash(password.trim(), 10);
+      await c.query(`UPDATE users SET password_hash=$2 WHERE id=$1`, [userId, hash]);
+    }
+
+    return { ok: true };
+  });
+
+  res.json(result);
+}));
+
+router.delete('/members/:userId', requireRole('ADMIN'), asyncHandler(async (req, res) => {
+  const s = req.session!;
+  const userId = Number(req.params.userId);
+  if (!userId) throw new HttpError(400, 'Invalid user ID');
+  if (userId === s.uid) {
+    throw new HttpError(400, 'You cannot remove your own account from the organization');
+  }
+
+  // Remove membership from this organization
+  const del = await one(
+    `DELETE FROM memberships WHERE org_id=$1 AND user_id=$2 RETURNING user_id`,
+    [s.orgId, userId]
+  );
+  if (!del) throw new HttpError(404, 'Member not found in this organization');
+
+  res.json({ ok: true });
+}));
+
 // ======================== POLICIES ========================
 router.put('/policies', requireRole(...PLAN), asyncHandler(async (req, res) => {
   const s = req.session!;
