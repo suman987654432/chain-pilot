@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
-import { apiCall, setStoredToken, setCachedSession, useData } from '@/lib/client';
+import React, { useState, useEffect } from 'react';
+import { apiCall, setStoredToken, setCachedSession, getCachedSession, useData } from '@/lib/client';
 import { Button, Field, Modal, Msg, StatusBadge, LoadingBadge, TableLoadingRow } from '@/components/ui';
 import { ShieldCheck, UserPlus, Lock, AlertCircle, Building2, Plus, ArrowRightLeft, Check, RefreshCw, Edit2, Trash2 } from 'lucide-react';
 
@@ -41,9 +41,19 @@ const ROLES_INFO: Record<string, { title: string; desc: string }> = {
 };
 
 export default function TeamPage() {
-  const { data, reload, error, loading } = useData<any[]>('/api/members');
-  const { data: me } = useData<any>('/api/auth/me');
-  const { data: lk } = useData<any>('/api/lookups');
+  const [mounted, setMounted] = useState(false);
+  const { data: me, loading: loadingMe } = useData<any>('/api/auth/me');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const cached = mounted ? getCachedSession() : null;
+  const role = me?.role || cached?.role;
+  const isAdmin = role === 'ADMIN';
+
+  const { data, reload, error, loading } = useData<any[]>(isAdmin ? '/api/members' : null);
+  const { data: lk } = useData<any>(isAdmin ? '/api/lookups' : null);
 
   const [m, setM] = useState<any>(null);
   const [editMember, setEditMember] = useState<any>(null);
@@ -63,7 +73,6 @@ export default function TeamPage() {
   const [orgBusy, setOrgBusy] = useState(false);
   const [switchingId, setSwitchingId] = useState<number | null>(null);
 
-  const isAdmin = me?.role === 'ADMIN';
   const orgs = me?.orgs ?? [];
   const currentOrgId = me?.org?.id;
 
@@ -171,6 +180,50 @@ export default function TeamPage() {
       setSwitchingId(null);
     }
   };
+
+  if (mounted && role && !isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 text-center">
+        <div className="max-w-md w-full bg-white border border-rose-200/80 rounded-3xl p-8 shadow-sm space-y-5">
+          <div className="w-16 h-16 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border border-rose-100 shadow-2xs">
+            <Lock className="w-8 h-8" />
+          </div>
+          <div className="space-y-1.5">
+            <h2 className="text-xl font-black text-slate-900 tracking-tight">Access Restricted</h2>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Team & Company Governance is restricted to <b>Director / Executive Administrator (ADMIN)</b> privileges only.
+            </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-semibold text-slate-700">
+              Your Current Role: <span className="text-brand-indigo font-bold">{role}</span>
+            </div>
+          </div>
+          <div className="pt-2">
+            <Button
+              variant="primary"
+              className="w-full justify-center"
+              onClick={() => {
+                if (role === 'PLANNER') window.location.replace('/planning');
+                else if (role === 'BUYER') window.location.replace('/procurement/pos');
+                else if (role === 'WAREHOUSE') window.location.replace('/stock');
+                else if (role === 'LOGISTICS' || role === 'DRIVER') window.location.replace('/shipments');
+                else window.location.replace('/');
+              }}
+            >
+              Return to Authorized Workspace
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!mounted || (loadingMe && !cached)) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] space-y-3">
+        <LoadingBadge text="Verifying organization authority credentials..." />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

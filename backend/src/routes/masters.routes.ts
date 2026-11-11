@@ -204,7 +204,7 @@ router.put('/customers/:id', requireRole(...MASTER), asyncHandler(async (req, re
 }));
 
 // ======================== MEMBERS ========================
-router.get('/members', requireRole(), asyncHandler(async (req, res) => {
+router.get('/members', requireRole('ADMIN'), asyncHandler(async (req, res) => {
   const s = req.session!;
   const result = await query(
     `SELECT u.id, u.name, u.email, u.phone, m.role, m.location_id, l.code AS location_code 
